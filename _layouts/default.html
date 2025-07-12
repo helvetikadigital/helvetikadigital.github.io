@@ -13,13 +13,132 @@
 </head>
 <body>
   <div class="image-container">
-    <img src="{{ '/assets/images/logo.webp' | relative_url }}" alt="Helvetika Digital" />
+      <canvas id="canvas"></canvas>
   </div>
 
   <script>
     // Prevent right-click (optional)
     document.addEventListener('contextmenu', e => e.preventDefault());
+
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+    const img = new Image();
+
+    let w, h, offset = 0, glitchInterval;
+
+    img.src = "{{ '/assets/images/logo.webp' | relative_url }}";
+    img.onload = () => {
+      init();
+      window.addEventListener('resize', init);
+    };
+
+    function init() {
+      clearInterval(glitchInterval);
+
+      // Set canvas width as 80% of window width, or full if smaller than 800
+      w = Math.min(window.innerWidth * 0.8, 800);
+      offset = w * 0.02;
+
+      // Calculate height to preserve image aspect ratio
+      h = Math.floor(img.height * ((w - offset * 2) / img.width));
+
+      canvas.width = w;
+      canvas.height = h;
+
+      drawImg();
+
+      glitchInterval = setInterval(() => {
+        glitchImg();
+        setTimeout(glitchImg, 50);
+        setTimeout(drawImg, 150);
+      }, randInt(3000, 8000));
+    }
+
+    function drawImg() {
+      context.clearRect(0, 0, w, h);
+      context.drawImage(
+        img,
+        0, 0, img.width, img.height,
+        offset, 0,
+        w - offset * 2,
+        h
+      );
+    }
+
+    function glitchImg() {
+      // Optionally flicker with semi-transparent rectangle
+      if (Math.random() < 0.1) {
+        context.fillStyle = `rgba(${randInt(0,255)}, ${randInt(0,255)}, ${randInt(0,255)}, 0.1)`;
+        context.fillRect(0, 0, w, h);
+      }
+
+      // Create several horizontal slices
+      for (let i = 0; i < randInt(2, 10); i++) {
+        const sliceHeight = randInt(2, 20);
+        const y = randInt(0, h - sliceHeight);
+        const sliceWidth = w;
+        const dx = randInt(-20, 20);
+
+        // Copy slice shifted horizontally
+        context.drawImage(canvas,
+          0, y, sliceWidth, sliceHeight,
+          dx, y, sliceWidth, sliceHeight
+        );
+      }
+
+      // Optional color-channel glitch
+      if (Math.random() < 0.3) {
+        channelShift();
+      }
+    }
+
+    function channelShift_old() {
+      const imageData = context.getImageData(0, 0, w, h);
+      const data = imageData.data;
+
+      const shift = randInt(-10, 10);
+
+      for (let y = 0; y < h; y++) {
+        for (let x = w - 1; x > 0; x--) {
+          const i = (y * w + x) * 4;
+
+          // Shift red channel horizontally
+          const shiftedIndex = ((y * w + ((x + shift + w) % w)) * 4);
+          data[i] = data[shiftedIndex];
+        }
+      }
+
+      context.putImageData(imageData, 0, 0);
+    }
+
+    function channelShift() {
+      const imageData = context.getImageData(0, 0, w, h);
+      const data = imageData.data;
+
+      const shift = randInt(-10, 10);
+
+      for (let y = 0; y < h; y++) {
+        for (let x = w - 1; x >= 0; x--) {
+          const i = (y * w + x) * 4;
+          const srcX = (x + shift + w) % w;
+          const srcI = (y * w + srcX) * 4;
+
+          data[i] = data[srcI];       // Red
+          data[i + 1] = data[srcI + 1]; // Green
+          data[i + 2] = data[srcI + 2]; // Blue
+          // leave alpha unchanged
+        }
+      }
+
+      context.putImageData(imageData, 0, 0);
+    }
+
+    function randInt(a, b) {
+      return Math.floor(Math.random() * (b - a) + a);
+    }
+
+
+
   </script>
 </body>
 </html>
-
